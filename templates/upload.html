@@ -1,0 +1,256 @@
+{% extends "base.html" %}
+{% block title %}Upload Dataset – LoanSight AI{% endblock %}
+
+{% block extra_head %}
+<style>
+  .page-hero {
+    background: linear-gradient(135deg, #0d0f14 0%, #0f172a 100%);
+    padding: 3.5rem 1.5rem 4rem;
+    text-align: center;
+    position: relative; overflow: hidden;
+  }
+  .page-hero::before {
+    content:'';
+    position:absolute;inset:0;
+    background-image: radial-gradient(circle, rgba(255,255,255,.05) 1px, transparent 1px);
+    background-size: 30px 30px;
+  }
+  .page-hero-content { position:relative; z-index:2; }
+
+  .upload-zone {
+    border: 2.5px dashed var(--border);
+    border-radius: 20px;
+    padding: 3.5rem 2rem;
+    text-align: center;
+    transition: border-color .2s, background .2s;
+    cursor: pointer;
+    background: #fafaf8;
+  }
+  .upload-zone:hover, .upload-zone.dragover {
+    border-color: var(--accent);
+    background: rgba(37,99,255,.03);
+  }
+  .upload-zone.has-file {
+    border-color: var(--emerald);
+    background: rgba(16,185,129,.03);
+  }
+
+  .training-overlay {
+    display: none;
+    position: fixed; inset: 0; z-index: 200;
+    background: rgba(13,15,20,.85);
+    backdrop-filter: blur(8px);
+    align-items: center; justify-content: center;
+    flex-direction: column; gap: 1.5rem;
+  }
+  .training-overlay.active { display: flex; }
+
+  .train-ring {
+    width: 80px; height: 80px;
+    border: 5px solid rgba(255,255,255,.1);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin .8s linear infinite;
+  }
+
+  .dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.25rem;
+    margin-top: 1.5rem;
+  }
+  .dash-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 16px; padding: 1.75rem 1.5rem;
+    text-align: center; cursor: pointer;
+    transition: transform .2s, box-shadow .2s, border-color .2s;
+    text-decoration: none; color: inherit; display: block;
+  }
+  .dash-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 16px 48px rgba(0,0,0,.1);
+    border-color: var(--accent);
+  }
+  .dash-icon {
+    font-size: 2.2rem; margin-bottom: .75rem;
+    display: block;
+  }
+  .dash-card h3 { font-family:'Syne',sans-serif; font-weight:700; font-size:.95rem; margin-bottom:.3rem; }
+  .dash-card p { font-size:.82rem; color:var(--muted); }
+
+  #success-section { display: none; }
+  #upload-section { display: block; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Page hero -->
+<section class="page-hero">
+  <div class="page-hero-content">
+    <span class="badge badge-blue mb-3">Step 1 of 2</span>
+    <h1 style="font-family:'Syne',sans-serif;font-weight:800;font-size:2.5rem;color:#fff;letter-spacing:-.02em;margin-bottom:.75rem">
+      Upload & Train
+    </h1>
+    <p style="color:rgba(255,255,255,.6);font-size:1.05rem;max-width:480px;margin:0 auto">
+      Upload your CSV loan dataset to train the prediction model. This unlocks Search and Predict features.
+    </p>
+  </div>
+</section>
+
+<div class="max-w-2xl mx-auto px-6 py-10">
+
+  <!-- Flash messages -->
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for cat, msg in messages %}
+        <div class="{% if cat == 'success' %}alert-success{% else %}alert-error{% endif %} mb-6 fade-up">
+          {{ msg }}
+        </div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+
+  <!-- ── UPLOAD SECTION ── -->
+  <div id="upload-section" class="fade-up">
+    <form id="upload-form" action="/upload" method="POST" enctype="multipart/form-data">
+      <!-- Drop zone -->
+      <div class="upload-zone" id="drop-zone" onclick="document.getElementById('csv-input').click()">
+        <div id="drop-default">
+          <div style="font-size:3rem;margin-bottom:1rem">📂</div>
+          <h3 style="font-family:'Syne',sans-serif;font-weight:700;font-size:1.2rem;margin-bottom:.5rem">
+            Drop your CSV file here
+          </h3>
+          <p style="color:var(--muted);font-size:.9rem;margin-bottom:1.25rem">or click to browse from your computer</p>
+          <span class="badge badge-blue">CSV files only</span>
+        </div>
+        <div id="drop-preview" style="display:none">
+          <div style="font-size:2.5rem;margin-bottom:.75rem">✅</div>
+          <h3 style="font-family:'Syne',sans-serif;font-weight:700;font-size:1.1rem;color:var(--emerald)" id="file-name-display">file.csv</h3>
+          <p style="color:var(--muted);font-size:.85rem;margin-top:.3rem" id="file-size-display">0 KB</p>
+        </div>
+        <input type="file" id="csv-input" name="file" accept=".csv" style="display:none" required />
+      </div>
+
+      <!-- Upload btn -->
+      <div class="mt-6 flex justify-center">
+        <button type="submit" class="btn-primary" id="upload-btn" style="font-size:1rem;padding:.9rem 2.5rem" disabled>
+          <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+          Upload & Train Model
+        </button>
+      </div>
+
+      <!-- Info note -->
+      <p style="text-align:center;color:var(--muted);font-size:.83rem;margin-top:1rem">
+        Training may take a few moments. Do not close the browser.
+      </p>
+    </form>
+  </div>
+
+  <!-- ── SUCCESS SECTION (shown after training) ── -->
+  {% if is_model_trained %}
+  <div id="success-section" style="display:block" class="fade-up">
+    <div class="alert-success mb-6" style="text-align:center;font-size:1rem">
+      ✅ Model Trained Successfully — Features are now unlocked!
+    </div>
+    <div class="dashboard-grid">
+      <a href="/search" class="dash-card">
+        <span class="dash-icon">🔍</span>
+        <h3>Search Customer</h3>
+        <p>Find existing records by name or ID</p>
+      </a>
+      <a href="/predict" class="dash-card">
+        <span class="dash-icon">✍️</span>
+        <h3>Enter New Details</h3>
+        <p>Manually input applicant data</p>
+      </a>
+      <a href="/predict" class="dash-card">
+        <span class="dash-icon">📊</span>
+        <h3>Predict</h3>
+        <p>Run repayment prediction</p>
+      </a>
+      <a href="/search" class="dash-card">
+        <span class="dash-icon">📄</span>
+        <h3>Generate Report</h3>
+        <p>Export PDF after prediction</p>
+      </a>
+    </div>
+    <div class="mt-6 text-center">
+      <a href="/upload" class="btn-outline" style="font-size:.85rem;padding:.6rem 1.4rem">
+        Re-upload Dataset
+      </a>
+    </div>
+  </div>
+  {% endif %}
+
+</div>
+
+<!-- ── TRAINING OVERLAY ── -->
+<div class="training-overlay" id="training-overlay">
+  <div class="train-ring"></div>
+  <div style="text-align:center">
+    <h3 style="font-family:'Syne',sans-serif;font-weight:800;color:#fff;font-size:1.3rem;margin-bottom:.5rem">Training Model…</h3>
+    <p style="color:rgba(255,255,255,.6)">Processing dataset and fitting the Random Forest model. Please wait.</p>
+  </div>
+  <div style="width:280px;height:5px;background:rgba(255,255,255,.1);border-radius:99px;overflow:hidden">
+    <div id="train-bar" style="height:100%;background:var(--accent);border-radius:99px;width:0%;transition:width .4s ease"></div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const dropZone  = document.getElementById('drop-zone');
+const fileInput = document.getElementById('csv-input');
+const uploadBtn = document.getElementById('upload-btn');
+const defaultUI = document.getElementById('drop-default');
+const previewUI = document.getElementById('drop-preview');
+const overlay   = document.getElementById('training-overlay');
+
+function setFile(file) {
+  if (!file || !file.name.endsWith('.csv')) {
+    alert('Please select a valid CSV file.');
+    return;
+  }
+  defaultUI.style.display = 'none';
+  previewUI.style.display = 'block';
+  dropZone.classList.add('has-file');
+  document.getElementById('file-name-display').textContent = file.name;
+  document.getElementById('file-size-display').textContent = (file.size / 1024).toFixed(1) + ' KB';
+  uploadBtn.disabled = false;
+  uploadBtn.style.opacity = '1';
+}
+
+fileInput.addEventListener('change', () => setFile(fileInput.files[0]));
+
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('dragover');
+  const file = e.dataTransfer.files[0];
+  // Transfer to hidden input
+  const dt = new DataTransfer();
+  dt.items.add(file);
+  fileInput.files = dt.files;
+  setFile(file);
+});
+
+document.getElementById('upload-form').addEventListener('submit', () => {
+  overlay.classList.add('active');
+  // Animate fake progress bar
+  let w = 0;
+  const bar = document.getElementById('train-bar');
+  const iv = setInterval(() => {
+    w = Math.min(w + Math.random() * 8, 92);
+    bar.style.width = w + '%';
+    if (w >= 92) clearInterval(iv);
+  }, 300);
+});
+
+// Disable upload btn until file chosen
+uploadBtn.disabled = true;
+uploadBtn.style.opacity = '.45';
+</script>
+{% endblock %}
