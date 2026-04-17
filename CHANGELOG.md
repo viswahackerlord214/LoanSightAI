@@ -5,3 +5,4 @@
 - 2026-04-10: Created base Flask application structure
 - 2026-04-12: Implemented dataset upload functionality
 - 2026-04-16: Added CSV parsing and preprocessing logic
+- 2026-04-17: Created base HTML templates and styling
