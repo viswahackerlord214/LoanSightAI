@@ -7,3 +7,4 @@
 - 2026-04-16: Added CSV parsing and preprocessing logic
 - 2026-04-17: Created base HTML templates and styling
 - 2026-04-19: Designed homepage UI with Tailwind CSS
+- 2026-04-20: Implemented data cleaning and handling missing values
