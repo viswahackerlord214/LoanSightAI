@@ -10,3 +10,4 @@
 - 2026-04-20: Implemented data cleaning and handling missing values
 - 2026-04-24: Integrated Pandas for data manipulation
 - 2026-04-26: Added one-hot encoding for categorical variables
+- 2026-04-27: Implemented StandardScaler for feature scaling
