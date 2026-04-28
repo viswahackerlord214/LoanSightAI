@@ -11,3 +11,4 @@
 - 2026-04-24: Integrated Pandas for data manipulation
 - 2026-04-26: Added one-hot encoding for categorical variables
 - 2026-04-27: Implemented StandardScaler for feature scaling
+- 2026-04-28: Created Random Forest training script
