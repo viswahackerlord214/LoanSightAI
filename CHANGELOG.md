@@ -15,3 +15,4 @@
 - 2026-05-02: Trained initial ML model
 - 2026-05-04: Saved model artifacts via Pickle
 - 2026-05-07: Added column mapping feature for dynamic encoding
+- 2026-05-09: Designed the loan prediction input form
