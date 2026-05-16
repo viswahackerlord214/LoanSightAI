@@ -17,3 +17,4 @@
 - 2026-05-07: Added column mapping feature for dynamic encoding
 - 2026-05-09: Designed the loan prediction input form
 - 2026-05-12: Connected frontend form to backend ML pipeline
+- 2026-05-16: Implemented 3-tier risk classification logic
