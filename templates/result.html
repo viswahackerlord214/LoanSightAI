@@ -1,0 +1,297 @@
+{% extends "base.html" %}
+{% block title %}Prediction Result – LoanSight AI{% endblock %}
+
+{% block extra_head %}
+<style>
+  .result-hero {
+    padding: 3rem 1.5rem 3.5rem; text-align: center;
+    position: relative; overflow: hidden;
+  }
+  .result-hero.repay {
+    background: linear-gradient(135deg, #052e16 0%, #064e3b 100%);
+  }
+  .result-hero.review {
+    background: linear-gradient(135deg, #422006 0%, #713f12 100%);
+  }
+  .result-hero.no-repay {
+    background: linear-gradient(135deg, #3b0764 0%, #500724 100%);
+  }
+  .result-hero::before {
+    content:''; position:absolute;inset:0;
+    background-image: radial-gradient(circle, rgba(255,255,255,.05) 1px, transparent 1px);
+    background-size:30px 30px;
+  }
+
+  .verdict-badge {
+    display: inline-flex; align-items: center; gap: .6rem;
+    font-family: 'Syne', sans-serif; font-weight: 800;
+    font-size: 1.3rem; padding: .75rem 1.75rem;
+    border-radius: 99px; border: 2px solid;
+  }
+  .verdict-badge.repay    { background:rgba(16,185,129,.15); border-color:rgba(16,185,129,.4); color:#6ee7b7; }
+  .verdict-badge.review   { background:rgba(234,179,8,.15); border-color:rgba(234,179,8,.4); color:#fde047; }
+  .verdict-badge.no-repay { background:rgba(244,63,94,.15);  border-color:rgba(244,63,94,.4);  color:#fca5a5; }
+
+  .metrics-bar {
+    display: flex; gap: 1.5rem; flex-wrap: wrap; justify-content: center;
+    margin-top: 2rem; position: relative; z-index: 2;
+  }
+  .metric-pill {
+    background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.12);
+    border-radius: 12px; padding: .85rem 1.5rem; text-align: center; min-width: 130px;
+  }
+  .metric-pill .mval { font-family:'Syne',sans-serif; font-weight:800; font-size:1.5rem; color:#fff; }
+  .metric-pill .mlbl { font-size:.72rem; color:rgba(255,255,255,.5); text-transform:uppercase; letter-spacing:.05em; }
+
+  /* Probability card */
+  .prob-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 20px; padding: 2.5rem;
+  }
+
+  /* Input table */
+  .input-table {
+    width: 100%; border-collapse: collapse;
+    font-size: .9rem;
+  }
+  .input-table th {
+    font-family: 'Syne', sans-serif; font-weight: 700;
+    font-size: .72rem; letter-spacing: .05em; text-transform: uppercase;
+    color: var(--muted); padding: .6rem 1rem; text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+  .input-table td {
+    padding: .65rem 1rem; border-bottom: 1px solid rgba(0,0,0,.04);
+    color: var(--ink);
+  }
+  .input-table tr:last-child td { border-bottom: none; }
+  .input-table tr:hover td { background: #fafaf8; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+{% set repay_status = 'repay' if prediction == 'Likely to Repay' else ('review' if prediction == 'Needs Review' else 'no-repay') %}
+
+<!-- ── HERO RESULT ── -->
+<section class="result-hero {{ repay_status }}">
+  <div style="position:relative;z-index:2">
+    <div class="verdict-badge {{ repay_status }} fade-up" style="margin-bottom:1rem">
+      {% if prediction == 'Likely to Repay' %}✅{% elif prediction == 'Needs Review' %}⚠️{% else %}❌{% endif %}
+      {{ prediction }}
+    </div>
+    <h1 style="font-family:'Syne',sans-serif;font-weight:800;font-size:2.2rem;color:#fff;letter-spacing:-.02em;margin-bottom:.5rem" class="fade-up delay-1">
+      {{ person_name or 'Applicant' }}
+    </h1>
+    <p style="color:rgba(255,255,255,.55);font-size:.95rem" class="fade-up delay-2">
+      {% if person_id %}ID: {{ person_id }} &nbsp;·&nbsp;{% endif %}
+      Prediction completed at {{ now }}
+    </p>
+    <div class="metrics-bar fade-up delay-3">
+      <div class="metric-pill">
+        <div class="mval">{{ "%.1f"|format(probability * 100) }}%</div>
+        <div class="mlbl">Probability</div>
+      </div>
+      <div class="metric-pill">
+        <div class="mval">{% if prediction == 'Likely to Repay' %}&lt; 30%{% elif prediction == 'Needs Review' %}30%-60%{% else %}&gt; 60%{% endif %}</div>
+        <div class="mlbl">Default Risk Threshold</div>
+      </div>
+      <div class="metric-pill">
+        <div class="mval">{% if prediction == 'Likely to Repay' %}LOW{% elif prediction == 'Needs Review' %}MODERATE{% else %}HIGH{% endif %}</div>
+        <div class="mlbl">Risk Level</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="max-w-4xl mx-auto px-6 py-10">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem" class="fade-up delay-1">
+
+    <!-- Probability Bar + Chart -->
+    <div class="prob-card" style="grid-column:1/-1">
+      <h3 style="font-family:'Syne',sans-serif;font-weight:700;margin-bottom:1.25rem">Probability Analysis</h3>
+
+      <!-- Progress bar -->
+      <div style="margin-bottom:1.75rem">
+        <div style="display:flex;justify-content:space-between;margin-bottom:.4rem">
+          <span style="font-size:.82rem;color:var(--muted)">Repayment Probability</span>
+          <span style="font-family:'Syne',sans-serif;font-weight:700" id="prob-label">{{ "%.1f"|format(probability * 100) }}%</span>
+        </div>
+        <div class="progress-track">
+          <div class="progress-fill" id="prob-bar"
+               style="width:0%; background:{% if repay %}var(--emerald){% else %}var(--rose){% endif %}"
+               data-target="{{ "%.2f"|format(probability * 100) }}">
+          </div>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-top:.4rem">
+          <span style="font-size:.72rem;color:var(--muted)">0% — Will NOT Repay</span>
+          <span style="font-size:.72rem;color:var(--muted)">100% — Will Repay</span>
+        </div>
+      </div>
+
+      <!-- Chart -->
+      <div style="height:200px">
+        <canvas id="prob-chart"></canvas>
+      </div>
+    </div>
+
+    <!-- Summary Card -->
+    <div class="card" style="padding:2rem">
+      <h3 style="font-family:'Syne',sans-serif;font-weight:700;margin-bottom:1rem">📝 Summary</h3>
+      <p style="color:var(--muted);line-height:1.75;font-size:.92rem">
+        {% if prediction == 'Likely to Repay' %}
+          Based on the provided features, the model predicts that this applicant is <strong style="color:var(--emerald)">likely to repay</strong> the loan. With a repayment probability of <strong>{{ "%.1f"|format(probability * 100) }}%</strong> (low default risk), this is a <strong>high-confidence</strong> positive prediction. The applicant shows strong repayment indicators.
+        {% elif prediction == 'Needs Review' %}
+          Based on the provided features, the model predicts that this applicant has a <strong>moderate risk profile</strong>. The repayment probability is <strong>{{ "%.1f"|format(probability * 100) }}%</strong>, which falls into the <strong>Needs Review</strong> tier. This is a borderline prediction. Further manual review of the applicant's credentials is advised.
+        {% else %}
+          Based on the provided features, the model predicts that this applicant is <strong style="color:var(--rose)">unlikely to repay</strong> the loan. With a repayment probability of only <strong>{{ "%.1f"|format(probability * 100) }}%</strong> (high default risk), this is a <strong>high-confidence</strong> negative prediction. The applicant shows significant risk factors and it is advised against approving the loan automatically.
+        {% endif %}
+      </p>
+    </div>
+
+    <!-- Risk Indicators -->
+    <div class="card" style="padding:2rem">
+      <h3 style="font-family:'Syne',sans-serif;font-weight:700;margin-bottom:1rem">⚠️ Risk Indicators</h3>
+      <div style="display:flex;flex-direction:column;gap:.75rem;font-size:.9rem">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="color:var(--muted)">Income Level</span>
+          <span class="badge {% if input_data.person_income|int > 50000 %}badge-green{% else %}badge-red{% endif %}">
+            {{ "High" if input_data.person_income|int > 50000 else "Low" }}
+          </span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="color:var(--muted)">Prior Default</span>
+          <span class="badge {% if input_data.cb_person_default_on_file == 'N' %}badge-green{% else %}badge-red{% endif %}">
+            {{ "None" if input_data.cb_person_default_on_file == 'N' else "Present" }}
+          </span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="color:var(--muted)">Loan Grade</span>
+          <span class="badge {% if input_data.loan_grade in ['A','B'] %}badge-green{% elif input_data.loan_grade in ['C','D'] %}badge-blue{% else %}badge-red{% endif %}">
+            {{ input_data.loan_grade or 'N/A' }}
+          </span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="color:var(--muted)">Employment</span>
+          <span class="badge {% if input_data.person_emp_length|int >= 2 %}badge-green{% else %}badge-red{% endif %}">
+            {{ input_data.person_emp_length }} yr(s)
+          </span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Input Features Table -->
+  <div class="card" style="padding:2.5rem;margin-top:1.5rem" class="fade-up delay-2">
+    <h3 style="font-family:'Syne',sans-serif;font-weight:700;margin-bottom:1.25rem">📋 Input Features</h3>
+    <div style="overflow-x:auto">
+      <table class="input-table">
+        <thead>
+          <tr>
+            <th>Feature</th>
+            <th>Value</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for key, val in input_data.items() %}
+          {% if key not in ['person_name','person_id'] %}
+          <tr>
+            <td style="font-weight:500;color:var(--muted)">{{ key.replace('_',' ').title() }}</td>
+            <td>{{ val if val is not none and val != '' else '—' }}</td>
+          </tr>
+          {% endif %}
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Actions -->
+  <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-top:2rem;justify-content:center" class="fade-up delay-3">
+    <a href="/download_report" class="btn-primary" style="font-size:.95rem;padding:.85rem 2rem">
+      <svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+      Download PDF Report
+    </a>
+    <a href="/predict" class="btn-outline" style="font-size:.95rem;padding:.85rem 2rem">New Prediction</a>
+    <a href="/search" class="btn-outline" style="font-size:.95rem;padding:.85rem 2rem">Search Another</a>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// Animate progress bar on load
+window.addEventListener('DOMContentLoaded', () => {
+  const bar = document.getElementById('prob-bar');
+  if (bar) {
+    const target = parseFloat(bar.dataset.target) || 0;
+    setTimeout(() => { bar.style.width = target + '%'; }, 200);
+  }
+
+  // Chart.js
+  const ctx = document.getElementById('prob-chart')?.getContext('2d');
+  if (!ctx) return;
+
+  const prob = {{ probability }};
+  const lowRiskThresh = 0.70;
+  const highRiskThresh = 0.40;
+
+  // Determine color based on 3-tier logic
+  let barColor, barBorder;
+  if (prob > lowRiskThresh) {
+    barColor = 'rgba(16,185,129,0.7)';
+    barBorder = '#10b981';
+  } else if (prob >= highRiskThresh) {
+    barColor = 'rgba(234,179,8,0.7)';
+    barBorder = '#eab308';
+  } else {
+    barColor = 'rgba(244,63,94,0.7)';
+    barBorder = '#f43f5e';
+  }
+
+  new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: ['Repayment Prob', 'Low Risk Thresh', 'High Risk Thresh'],
+      datasets: [{
+        data: [prob * 100, lowRiskThresh * 100, highRiskThresh * 100],
+        backgroundColor: [
+          barColor,
+          'rgba(16,185,129,0.3)', // light green for low risk threshold
+          'rgba(244,63,94,0.3)'   // light red for high risk threshold
+        ],
+        borderColor: [
+          barBorder,
+          '#10b981',
+          '#f43f5e'
+        ],
+        borderWidth: 2,
+        borderRadius: 8,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => ctx.parsed.y.toFixed(1) + '%'
+          }
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true, max: 100,
+          ticks: { callback: v => v + '%' },
+          grid: { color: 'rgba(0,0,0,.06)' }
+        },
+        x: { grid: { display: false } }
+      },
+      animation: { duration: 1000, easing: 'easeOutQuart' }
+    }
+  });
+});
+</script>
+{% endblock %}
