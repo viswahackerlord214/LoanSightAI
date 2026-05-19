@@ -19,3 +19,4 @@
 - 2026-05-12: Connected frontend form to backend ML pipeline
 - 2026-05-16: Implemented 3-tier risk classification logic
 - 2026-05-17: Designed prediction result page with Chart.js
+- 2026-05-19: Added probability visualization metrics
