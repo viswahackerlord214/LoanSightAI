@@ -1,0 +1,213 @@
+{% extends "base.html" %}
+{% block title %}Search Customer – LoanSight AI{% endblock %}
+
+{% block extra_head %}
+<style>
+  .page-hero {
+    background: linear-gradient(135deg, #0d0f14 0%, #0f172a 100%);
+    padding: 3.5rem 1.5rem 4rem; text-align: center;
+    position: relative; overflow: hidden;
+  }
+  .page-hero::before {
+    content:''; position:absolute;inset:0;
+    background-image: radial-gradient(circle, rgba(255,255,255,.05) 1px, transparent 1px);
+    background-size: 30px 30px;
+  }
+  .page-hero-content { position:relative; z-index:2; }
+
+  .search-bar-wrap {
+    display: flex; gap: .75rem; max-width: 520px; margin: 0 auto;
+  }
+  .search-bar-input {
+    flex: 1; padding: .85rem 1.2rem;
+    border: 2px solid var(--border); border-radius: 10px;
+    font-family: 'DM Sans', sans-serif; font-size: 1rem;
+    outline: none; transition: border-color .2s, box-shadow .2s;
+  }
+  .search-bar-input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(37,99,255,.1);
+  }
+
+  .result-card {
+    background: var(--card); border: 1.5px solid var(--border);
+    border-radius: 16px; overflow: hidden;
+    transition: border-color .2s, box-shadow .2s;
+  }
+  .result-card:hover { border-color: var(--accent); box-shadow: 0 8px 32px rgba(37,99,255,.08); }
+  .result-card-header {
+    background: #f8f8f6; border-bottom: 1px solid var(--border);
+    padding: 1rem 1.5rem; display: flex; align-items: center; justify-content: space-between;
+  }
+
+  .data-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: .75rem; padding: 1.5rem;
+  }
+  .data-item { }
+  .data-item .key {
+    font-family: 'Syne', sans-serif; font-size: .72rem; font-weight: 700;
+    letter-spacing: .05em; text-transform: uppercase;
+    color: var(--muted); margin-bottom: .2rem;
+  }
+  .data-item .val {
+    font-size: .95rem; font-weight: 500; color: var(--ink);
+  }
+
+  #results-section { display: none; }
+  #no-results { display: none; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+{% if not is_model_trained %}
+<div class="max-w-lg mx-auto px-6 py-20 text-center fade-up">
+  <div style="font-size:3rem;margin-bottom:1rem">🔒</div>
+  <h2 style="font-family:'Syne',sans-serif;font-weight:800;font-size:1.6rem;margin-bottom:.75rem">Model Not Trained Yet</h2>
+  <p style="color:var(--muted);margin-bottom:1.5rem">Please upload a dataset and train the model before using Search.</p>
+  <a href="/upload" class="btn-primary">Go to Upload →</a>
+</div>
+{% else %}
+
+<section class="page-hero">
+  <div class="page-hero-content">
+    <span class="badge badge-blue mb-3">Search</span>
+    <h1 style="font-family:'Syne',sans-serif;font-weight:800;font-size:2.4rem;color:#fff;letter-spacing:-.02em;margin-bottom:.75rem">
+      Find a Customer
+    </h1>
+    <p style="color:rgba(255,255,255,.6);font-size:1rem;max-width:420px;margin:0 auto 1.75rem">
+      Search by name or ID to auto-fill the prediction form with existing data.
+    </p>
+    <div class="search-bar-wrap">
+      <input type="text" id="search-input" class="search-bar-input" placeholder="Enter name or customer ID…" autocomplete="off" />
+      <button class="btn-accent" id="search-btn" style="padding:.85rem 1.5rem;white-space:nowrap">
+        Search
+      </button>
+    </div>
+  </div>
+</section>
+
+<div class="max-w-3xl mx-auto px-6 py-10">
+
+  <!-- Loading -->
+  <div id="search-loading" style="display:none;text-align:center;padding:2rem">
+    <div class="spinner" style="margin:0 auto"></div>
+    <p style="color:var(--muted);margin-top:1rem;font-size:.9rem">Searching records…</p>
+  </div>
+
+  <!-- No results -->
+  <div id="no-results" class="fade-up" style="display:none;text-align:center;padding:2rem">
+    <div style="font-size:2.5rem;margin-bottom:.75rem">🔍</div>
+    <h3 style="font-family:'Syne',sans-serif;font-weight:700;margin-bottom:.5rem">No records found</h3>
+    <p style="color:var(--muted)">Try a different name or ID. You can still <a href="/predict" style="color:var(--accent);font-weight:600">enter details manually</a>.</p>
+  </div>
+
+  <!-- Results -->
+  <div id="results-section" class="fade-up">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+      <h3 style="font-family:'Syne',sans-serif;font-weight:700">
+        <span id="result-count">0</span> record(s) found
+      </h3>
+      <a href="/predict" class="btn-outline" style="font-size:.82rem;padding:.5rem 1.1rem">Enter Manually</a>
+    </div>
+
+    <div id="results-list" class="flex flex-col gap-4"></div>
+  </div>
+
+  <!-- Empty state -->
+  <div id="empty-state" style="text-align:center;padding:3rem 1rem">
+    <div style="font-size:3rem;margin-bottom:1rem">👤</div>
+    <h3 style="font-family:'Syne',sans-serif;font-weight:700;margin-bottom:.5rem">Search for a Customer</h3>
+    <p style="color:var(--muted);margin-bottom:1.5rem">Enter a name or customer ID in the search bar above.</p>
+    <a href="/predict" class="btn-outline" style="font-size:.88rem">Skip – Enter Details Manually</a>
+  </div>
+
+</div>
+
+{% endif %}
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const searchInput = document.getElementById('search-input');
+const searchBtn   = document.getElementById('search-btn');
+const loading     = document.getElementById('search-loading');
+const noResults   = document.getElementById('no-results');
+const resultsSection = document.getElementById('results-section');
+const resultsList    = document.getElementById('results-list');
+const emptyState     = document.getElementById('empty-state');
+
+function doSearch() {
+  const q = searchInput.value.trim();
+  if (!q) return;
+
+  loading.style.display = 'block';
+  noResults.style.display = 'none';
+  resultsSection.style.display = 'none';
+  emptyState.style.display = 'none';
+
+  fetch(`/search_customer?q=${encodeURIComponent(q)}`)
+    .then(r => r.json())
+    .then(data => {
+      loading.style.display = 'none';
+      if (!data.results || data.results.length === 0) {
+        noResults.style.display = 'block';
+        return;
+      }
+      resultsSection.style.display = 'block';
+      document.getElementById('result-count').textContent = data.results.length;
+      resultsList.innerHTML = '';
+      data.results.forEach(rec => {
+        const card = buildCard(rec);
+        resultsList.appendChild(card);
+      });
+    })
+    .catch(() => {
+      loading.style.display = 'none';
+      noResults.style.display = 'block';
+    });
+}
+
+function buildCard(rec) {
+  const div = document.createElement('div');
+  div.className = 'result-card fade-up';
+
+  const keys = Object.keys(rec);
+  const dataHTML = keys.map(k => `
+    <div class="data-item">
+      <div class="key">${k.replace(/_/g,' ')}</div>
+      <div class="val">${rec[k] !== null && rec[k] !== undefined ? rec[k] : '—'}</div>
+    </div>
+  `).join('');
+
+  div.innerHTML = `
+    <div class="result-card-header">
+      <div style="display:flex;align-items:center;gap:.6rem">
+        <div style="width:36px;height:36px;background:var(--ink);border-radius:9px;display:flex;align-items:center;justify-content:center;color:#fff;font-family:'Syne',sans-serif;font-weight:800;font-size:.9rem">
+          ${(rec['person_name'] || rec['name'] || 'U').toString().charAt(0).toUpperCase()}
+        </div>
+        <div>
+          <div style="font-family:'Syne',sans-serif;font-weight:700">${rec['person_name'] || rec['name'] || 'Customer'}</div>
+          <div style="font-size:.78rem;color:var(--muted)">ID: ${rec['person_id'] || rec['id'] || 'N/A'}</div>
+        </div>
+      </div>
+      <button class="btn-accent" style="font-size:.82rem;padding:.5rem 1.1rem" onclick='useRecord(${JSON.stringify(rec)})'>
+        Use for Prediction →
+      </button>
+    </div>
+    <div class="data-grid">${dataHTML}</div>
+  `;
+  return div;
+}
+
+function useRecord(rec) {
+  // Store in sessionStorage and redirect to predict
+  sessionStorage.setItem('prefill', JSON.stringify(rec));
+  window.location.href = '/predict';
+}
+
+searchBtn.addEventListener('click', doSearch);
+searchInput.addEventListener('keydown', e => { if (e.key === 'Enter') doSearch(); });
+</script>
+{% endblock %}
