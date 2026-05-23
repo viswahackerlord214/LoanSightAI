@@ -21,3 +21,4 @@
 - 2026-05-17: Designed prediction result page with Chart.js
 - 2026-05-19: Added probability visualization metrics
 - 2026-05-20: Implemented customer search functionality by ID/Name
+- 2026-05-23: Added AJAX endpoints for search autocomplete
