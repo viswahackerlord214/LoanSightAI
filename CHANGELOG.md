@@ -23,3 +23,4 @@
 - 2026-05-20: Implemented customer search functionality by ID/Name
 - 2026-05-23: Added AJAX endpoints for search autocomplete
 - 2026-05-26: Integrated session storage for form prefilling
+- 2026-05-30: Refactored code and optimized model performance
