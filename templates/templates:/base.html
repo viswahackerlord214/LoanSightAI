@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>{% block title %}LoanSight AI{% endblock %}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --ink: #0d0f14;
+      --surface: #f5f4ef;
+      --card: #ffffff;
+      --accent: #2563ff;
+      --accent-dark: #1a45cc;
+      --emerald: #10b981;
+      --rose: #f43f5e;
+      --amber: #f59e0b;
+      --muted: #6b7280;
+      --border: #e5e4df;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--surface);
+      color: var(--ink);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    h1,h2,h3,h4,h5,h6,.brand { font-family: 'Syne', sans-serif; }
+    main { flex: 1; }
+
+    /* ─── NAVBAR ─── */
+    #navbar {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      background: rgba(245,244,239,0.88);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      transition: box-shadow .3s;
+    }
+    #navbar.scrolled { box-shadow: 0 2px 20px rgba(0,0,0,.08); }
+    .nav-link {
+      font-family: 'Syne', sans-serif;
+      font-weight: 600;
+      font-size: .85rem;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+      color: var(--muted);
+      padding: .4rem .8rem;
+      border-radius: 6px;
+      transition: color .2s, background .2s;
+      text-decoration: none;
+    }
+    .nav-link:hover { color: var(--ink); background: var(--border); }
+    .nav-link.active { color: var(--accent); background: rgba(37,99,255,.08); }
+    .nav-lock {
+      opacity: .35;
+      cursor: not-allowed;
+      font-family: 'Syne', sans-serif;
+      font-weight: 600;
+      font-size: .85rem;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+      padding: .4rem .8rem;
+      display: flex; align-items: center; gap: .3rem;
+    }
+
+    /* ─── BUTTONS ─── */
+    .btn-primary {
+      display: inline-flex; align-items: center; justify-content: center; gap: .5rem;
+      background: var(--ink); color: #fff;
+      font-family: 'Syne', sans-serif; font-weight: 700; font-size: .9rem;
+      letter-spacing: .03em; padding: .75rem 1.75rem;
+      border-radius: 8px; border: none; cursor: pointer;
+      transition: transform .15s, box-shadow .15s, background .2s;
+      text-decoration: none;
+    }
+    .btn-primary:hover { background: var(--accent); transform: translateY(-1px); box-shadow: 0 6px 20px rgba(37,99,255,.25); }
+    .btn-outline {
+      display: inline-flex; align-items: center; justify-content: center; gap: .5rem;
+      background: transparent; color: var(--ink);
+      font-family: 'Syne', sans-serif; font-weight: 700; font-size: .9rem;
+      letter-spacing: .03em; padding: .75rem 1.75rem;
+      border-radius: 8px; border: 2px solid var(--ink); cursor: pointer;
+      transition: transform .15s, background .2s, color .2s;
+      text-decoration: none;
+    }
+    .btn-outline:hover { background: var(--ink); color: #fff; transform: translateY(-1px); }
+    .btn-accent {
+      display: inline-flex; align-items: center; justify-content: center; gap: .5rem;
+      background: var(--accent); color: #fff;
+      font-family: 'Syne', sans-serif; font-weight: 700; font-size: .9rem;
+      letter-spacing: .03em; padding: .75rem 1.75rem;
+      border-radius: 8px; border: none; cursor: pointer;
+      transition: transform .15s, box-shadow .15s;
+      text-decoration: none;
+    }
+    .btn-accent:hover { background: var(--accent-dark); transform: translateY(-1px); box-shadow: 0 6px 20px rgba(37,99,255,.3); }
+
+    /* ─── CARDS ─── */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      transition: transform .2s, box-shadow .2s;
+    }
+    .card:hover { transform: translateY(-3px); box-shadow: 0 12px 40px rgba(0,0,0,.08); }
+
+    /* ─── INPUTS ─── */
+    .input-field {
+      width: 100%; padding: .7rem 1rem;
+      background: #fafaf8; border: 1.5px solid var(--border);
+      border-radius: 8px; font-family: 'DM Sans', sans-serif;
+      font-size: .95rem; color: var(--ink);
+      transition: border-color .2s, box-shadow .2s;
+      outline: none;
+    }
+    .input-field:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(37,99,255,.1);
+      background: #fff;
+    }
+    .input-label {
+      font-family: 'Syne', sans-serif; font-weight: 600;
+      font-size: .78rem; letter-spacing: .05em; text-transform: uppercase;
+      color: var(--muted); margin-bottom: .35rem; display: block;
+    }
+
+    /* ─── ALERTS ─── */
+    .alert-success {
+      background: rgba(16,185,129,.08); border: 1px solid rgba(16,185,129,.3);
+      border-radius: 10px; padding: 1rem 1.25rem; color: #065f46;
+      font-weight: 500;
+    }
+    .alert-error {
+      background: rgba(244,63,94,.08); border: 1px solid rgba(244,63,94,.3);
+      border-radius: 10px; padding: 1rem 1.25rem; color: #9f1239;
+      font-weight: 500;
+    }
+
+    /* ─── SPINNER ─── */
+    .spinner {
+      width: 36px; height: 36px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ─── PROGRESS BAR ─── */
+    .progress-track {
+      height: 12px; background: var(--border);
+      border-radius: 99px; overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%; border-radius: 99px;
+      transition: width 1.2s cubic-bezier(.4,0,.2,1);
+    }
+
+    /* ─── FOOTER ─── */
+    footer {
+      background: var(--ink); color: rgba(255,255,255,.55);
+      padding: 2.5rem 1.5rem; margin-top: auto;
+      font-size: .85rem; text-align: center;
+    }
+    footer .brand-footer {
+      font-family: 'Syne', sans-serif; font-weight: 800;
+      font-size: 1.1rem; color: #fff; margin-bottom: .5rem;
+    }
+    footer a { color: rgba(255,255,255,.5); text-decoration: none; transition: color .2s; }
+    footer a:hover { color: #fff; }
+
+    /* ─── FADE IN ─── */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(18px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .fade-up { animation: fadeUp .5s ease both; }
+    .delay-1 { animation-delay: .1s; }
+    .delay-2 { animation-delay: .2s; }
+    .delay-3 { animation-delay: .3s; }
+    .delay-4 { animation-delay: .4s; }
+    .delay-5 { animation-delay: .5s; }
+
+    /* ─── BADGE ─── */
+    .badge {
+      display: inline-flex; align-items: center; gap: .3rem;
+      font-family: 'Syne', sans-serif; font-weight: 700;
+      font-size: .7rem; letter-spacing: .06em; text-transform: uppercase;
+      padding: .25rem .65rem; border-radius: 99px;
+    }
+    .badge-blue { background: rgba(37,99,255,.1); color: var(--accent); }
+    .badge-green { background: rgba(16,185,129,.1); color: #059669; }
+    .badge-red { background: rgba(244,63,94,.1); color: #e11d48; }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #ccc; border-radius: 99px; }
+  </style>
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+
+<!-- ══════════ NAVBAR ══════════ -->
+<nav id="navbar">
+  <div class="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
+    <!-- Brand -->
+    <a href="/" class="brand flex items-center gap-2 text-xl font-extrabold text-[var(--ink)] no-underline" style="letter-spacing:-.01em">
+      <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+        <rect width="28" height="28" rx="7" fill="#0d0f14"/>
+        <path d="M7 19L12 10L16 15L19 12L22 19H7Z" fill="white" opacity=".9"/>
+        <circle cx="19" cy="10" r="2.5" fill="#2563ff"/>
+      </svg>
+      LoanSight AI
+    </a>
+    <!-- Links -->
+    <div class="flex items-center gap-1">
+      <a href="/" class="nav-link {% if request.endpoint == 'index' %}active{% endif %}">Home</a>
+      <a href="/upload" class="nav-link {% if request.endpoint == 'upload' %}active{% endif %}">Upload</a>
+
+      {% if is_model_trained %}
+        <a href="/search" class="nav-link {% if request.endpoint == 'search' %}active{% endif %}">Search</a>
+        <a href="/predict" class="nav-link {% if request.endpoint == 'predict' %}active{% endif %}">Predict</a>
+      {% else %}
+        <span class="nav-lock" title="Train a model first">
+          <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+          Search
+        </span>
+        <span class="nav-lock" title="Train a model first">
+          <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+          Predict
+        </span>
+      {% endif %}
+    </div>
+  </div>
+</nav>
+
+<!-- ══════════ MAIN ══════════ -->
+<main style="padding-top:4rem">
+  {% block content %}{% endblock %}
+</main>
+
+<!-- ══════════ FOOTER ══════════ -->
+<footer>
+  <div class="max-w-4xl mx-auto">
+    <div class="brand-footer">LoanSight AI</div>
+    <p style="margin-bottom:1rem">AI-powered Loan Repayment Prediction System</p>
+    <p style="margin-bottom:.5rem">Developed by:
+      <a href="#">Your Name</a> &nbsp;·&nbsp;
+      <a href="#">Member 2</a> &nbsp;·&nbsp;
+      <a href="#">Member 3</a>
+    </p>
+    <p>© 2026 LoanSight AI. All rights reserved.</p>
+  </div>
+</footer>
+
+<script>
+  // Navbar scroll shadow
+  window.addEventListener('scroll', () => {
+    document.getElementById('navbar').classList.toggle('scrolled', window.scrollY > 10);
+  });
+</script>
+{% block extra_scripts %}{% endblock %}
+</body>
+</html>

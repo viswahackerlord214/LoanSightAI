@@ -1,0 +1,247 @@
+{% extends "base.html" %}
+{% block title %}LoanSight AI – Home{% endblock %}
+
+{% block extra_head %}
+<style>
+  /* Hero */
+  .hero {
+    min-height: calc(100vh - 4rem);
+    background: linear-gradient(135deg, #0d0f14 0%, #0f172a 55%, #1e1b4b 100%);
+    display: flex; align-items: center; justify-content: center;
+    position: relative; overflow: hidden;
+  }
+  /* Animated dots grid */
+  .hero::before {
+    content: '';
+    position: absolute; inset: 0;
+    background-image: radial-gradient(circle, rgba(255,255,255,.07) 1px, transparent 1px);
+    background-size: 36px 36px;
+    animation: drift 18s linear infinite;
+  }
+  @keyframes drift { from { background-position: 0 0; } to { background-position: 36px 36px; } }
+
+  /* Glowing orbs */
+  .orb {
+    position: absolute; border-radius: 50%;
+    filter: blur(80px); pointer-events: none;
+  }
+  .orb-1 { width: 420px; height: 420px; background: rgba(37,99,255,.18); top: -100px; left: -80px; }
+  .orb-2 { width: 300px; height: 300px; background: rgba(139,92,246,.15); bottom: -60px; right: -40px; }
+  .orb-3 { width: 200px; height: 200px; background: rgba(16,185,129,.1); top: 40%; right: 20%; }
+
+  .hero-inner { position: relative; z-index: 2; text-align: center; max-width: 780px; padding: 3rem 1.5rem; }
+
+  .hero-eyebrow {
+    display: inline-flex; align-items: center; gap: .5rem;
+    background: rgba(37,99,255,.15); border: 1px solid rgba(37,99,255,.25);
+    color: #93b4ff; font-family: 'Syne', sans-serif; font-weight: 700;
+    font-size: .75rem; letter-spacing: .1em; text-transform: uppercase;
+    padding: .35rem 1rem; border-radius: 99px; margin-bottom: 1.5rem;
+  }
+  .hero-title {
+    font-family: 'Syne', sans-serif; font-weight: 800;
+    font-size: clamp(2.8rem, 7vw, 5.5rem);
+    line-height: 1.05; letter-spacing: -.03em; color: #fff;
+    margin-bottom: 1.25rem;
+  }
+  .hero-title .accent { color: #5b8fff; }
+  .hero-subtitle {
+    font-size: 1.15rem; color: rgba(255,255,255,.6);
+    line-height: 1.7; max-width: 560px; margin: 0 auto 2rem;
+  }
+
+  /* Stat pills */
+  .stat-bar {
+    display: flex; align-items: center; justify-content: center; gap: 1.5rem;
+    margin-bottom: 2.5rem; flex-wrap: wrap;
+  }
+  .stat-pill {
+    background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1);
+    border-radius: 10px; padding: .6rem 1.1rem; text-align: center;
+  }
+  .stat-pill .num { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.3rem; color: #fff; }
+  .stat-pill .lbl { font-size: .72rem; color: rgba(255,255,255,.45); text-transform: uppercase; letter-spacing: .05em; }
+
+  /* Features strip */
+  .feature-strip {
+    padding: 5rem 1.5rem;
+    background: var(--surface);
+  }
+  .feature-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 16px; padding: 2rem;
+    transition: transform .2s, box-shadow .2s;
+  }
+  .feature-card:hover { transform: translateY(-4px); box-shadow: 0 16px 48px rgba(0,0,0,.07); }
+  .feature-icon {
+    width: 48px; height: 48px; border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.4rem; margin-bottom: 1rem;
+  }
+
+  /* How it works */
+  .step-number {
+    width: 42px; height: 42px; border-radius: 12px;
+    background: var(--ink); color: #fff;
+    font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.1rem;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+
+  /* CTA banner */
+  .cta-banner {
+    background: var(--ink); border-radius: 24px;
+    padding: 3.5rem 2rem; text-align: center;
+    position: relative; overflow: hidden;
+  }
+  .cta-banner::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse at 30% 50%, rgba(37,99,255,.25) 0%, transparent 60%);
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- ══════════ HERO ══════════ -->
+<section class="hero">
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+  <div class="orb orb-3"></div>
+
+  <div class="hero-inner">
+    <div class="hero-eyebrow fade-up">
+      <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><circle cx="5" cy="5" r="5"/></svg>
+      Powered by Deep Learning
+    </div>
+
+    <h1 class="hero-title fade-up delay-1">
+      Loan<span class="accent">Sight</span> AI
+    </h1>
+
+    <p class="hero-subtitle fade-up delay-2">
+      AI-powered Loan Repayment Prediction System. Upload your dataset, train the model, and instantly predict whether a borrower will repay — with full PDF reporting.
+    </p>
+
+    <div class="stat-bar fade-up delay-3">
+      <div class="stat-pill">
+        <div class="num">ANN</div>
+        <div class="lbl">Model Type</div>
+      </div>
+      <div class="stat-pill">
+        <div class="num">Real-time</div>
+        <div class="lbl">Prediction</div>
+      </div>
+      <div class="stat-pill">
+        <div class="num">PDF</div>
+        <div class="lbl">Report Export</div>
+      </div>
+      <div class="stat-pill">
+        <div class="num">CSV</div>
+        <div class="lbl">Dataset Upload</div>
+      </div>
+    </div>
+
+    <div class="flex items-center justify-center gap-4 flex-wrap fade-up delay-4">
+      <a href="/upload" class="btn-accent" style="padding:.9rem 2rem; font-size:1rem">
+        <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+        Upload Dataset
+      </a>
+      <a href="#how-it-works" class="btn-outline" style="border-color:rgba(255,255,255,.3); color:#fff; padding:.9rem 2rem; font-size:1rem">
+        Get Started
+        <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════ FEATURES ══════════ -->
+<section class="feature-strip">
+  <div class="max-w-6xl mx-auto">
+    <div class="text-center mb-12">
+      <span class="badge badge-blue mb-3">What We Offer</span>
+      <h2 style="font-family:'Syne',sans-serif; font-size:2.2rem; font-weight:800; letter-spacing:-.02em">Everything You Need</h2>
+      <p style="color:var(--muted); margin-top:.5rem">From dataset upload to PDF report in minutes</p>
+    </div>
+    <div class="grid gap-6" style="grid-template-columns: repeat(auto-fit, minmax(240px, 1fr))">
+      <div class="feature-card">
+        <div class="feature-icon" style="background:#eff6ff">📤</div>
+        <h3 style="font-family:'Syne',sans-serif;font-weight:700;margin-bottom:.5rem">CSV Upload & Training</h3>
+        <p style="color:var(--muted);font-size:.92rem;line-height:1.6">Upload your loan dataset and automatically train the ANN model with live progress feedback.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon" style="background:#f0fdf4">🔍</div>
+        <h3 style="font-family:'Syne',sans-serif;font-weight:700;margin-bottom:.5rem">Smart Search</h3>
+        <p style="color:var(--muted);font-size:.92rem;line-height:1.6">Search by person name or ID to auto-fill the prediction form with existing data.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon" style="background:#fefce8">⚡</div>
+        <h3 style="font-family:'Syne',sans-serif;font-weight:700;margin-bottom:.5rem">Instant Prediction</h3>
+        <p style="color:var(--muted);font-size:.92rem;line-height:1.6">Get real-time loan repayment predictions with probability scores and visual charts.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon" style="background:#fdf4ff">📄</div>
+        <h3 style="font-family:'Syne',sans-serif;font-weight:700;margin-bottom:.5rem">PDF Reports</h3>
+        <p style="color:var(--muted);font-size:.92rem;line-height:1.6">Export a complete, detailed PDF report with input features, prediction, and explanation.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════ HOW IT WORKS ══════════ -->
+<section id="how-it-works" style="padding:5rem 1.5rem; background:#fff">
+  <div class="max-w-3xl mx-auto">
+    <div class="text-center mb-12">
+      <span class="badge badge-blue mb-3">Workflow</span>
+      <h2 style="font-family:'Syne',sans-serif;font-size:2.2rem;font-weight:800;letter-spacing:-.02em">How It Works</h2>
+    </div>
+    <div class="flex flex-col gap-6">
+      <div class="flex gap-4 items-start">
+        <div class="step-number">1</div>
+        <div>
+          <h4 style="font-family:'Syne',sans-serif;font-weight:700;margin-bottom:.3rem">Upload Your Dataset</h4>
+          <p style="color:var(--muted);line-height:1.7">Upload a CSV file containing loan applicant data. The system validates and processes it automatically.</p>
+        </div>
+      </div>
+      <div class="flex gap-4 items-start">
+        <div class="step-number">2</div>
+        <div>
+          <h4 style="font-family:'Syne',sans-serif;font-weight:700;margin-bottom:.3rem">Model Trains Automatically</h4>
+          <p style="color:var(--muted);line-height:1.7">The ANN model processes your dataset. Once done, Search and Predict features unlock instantly.</p>
+        </div>
+      </div>
+      <div class="flex gap-4 items-start">
+        <div class="step-number">3</div>
+        <div>
+          <h4 style="font-family:'Syne',sans-serif;font-weight:700;margin-bottom:.3rem">Search or Enter Details</h4>
+          <p style="color:var(--muted);line-height:1.7">Search for an existing customer to auto-fill the form, or manually enter new applicant details.</p>
+        </div>
+      </div>
+      <div class="flex gap-4 items-start">
+        <div class="step-number">4</div>
+        <div>
+          <h4 style="font-family:'Syne',sans-serif;font-weight:700;margin-bottom:.3rem">Get Prediction & Export Report</h4>
+          <p style="color:var(--muted);line-height:1.7">View the repayment prediction with probability score, charts, and download a complete PDF report.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════ CTA ══════════ -->
+<section style="padding:4rem 1.5rem; background:var(--surface)">
+  <div class="max-w-4xl mx-auto">
+    <div class="cta-banner">
+      <div style="position:relative;z-index:2">
+        <h2 style="font-family:'Syne',sans-serif;font-size:2rem;font-weight:800;color:#fff;margin-bottom:1rem">Ready to Get Started?</h2>
+        <p style="color:rgba(255,255,255,.6);margin-bottom:2rem">Upload your dataset and make your first prediction in under a minute.</p>
+        <a href="/upload" class="btn-accent" style="font-size:1rem;padding:.9rem 2.2rem">
+          Upload Dataset Now →
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+{% endblock %}
