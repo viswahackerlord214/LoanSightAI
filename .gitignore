@@ -6,3 +6,4 @@ __pycache__/
 uploads/
 tmp_loan/
 *.h5
+forge_git_history.py
