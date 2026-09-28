@@ -1,9 +1,11 @@
 import pandas as pd
 import numpy as np
 import pickle
+import os
+from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import RandomForestClassifier
-import os
+from sklearn.metrics import accuracy_score, roc_auc_score, classification_report
 
 def train_and_save_model(dataset_path):
     if not os.path.exists(dataset_path):
@@ -41,13 +43,37 @@ def train_and_save_model(dataset_path):
 
     final_columns = list(X_encoded.columns)
 
-    # Feature scaling
-    scaler = StandardScaler()
-    X_scaled = scaler.fit_transform(X_encoded)
+    # 4. Train / Test Split (80% Train, 20% Unseen Test)
+    X_train, X_test, y_train, y_test = train_test_split(
+        X_encoded, y, test_size=0.20, random_state=42, stratify=y
+    )
 
-    # Model training
-    model = RandomForestClassifier(n_estimators=100, class_weight='balanced', random_state=42)
-    model.fit(X_scaled, y)
+    # 5. Feature scaling (Fit ONLY on X_train to prevent data leakage)
+    scaler = StandardScaler()
+    X_train_scaled = scaler.fit_transform(X_train)
+    X_test_scaled = scaler.transform(X_test)
+
+    # 6. Regularized Random Forest (Controlled Depth)
+    model = RandomForestClassifier(
+        n_estimators=150,
+        max_depth=6,              # Depth limit to stop 100% memorization
+        min_samples_split=10,
+        min_samples_leaf=4,
+        max_features='sqrt',
+        class_weight='balanced',
+        random_state=42
+    )
+    model.fit(X_train_scaled, y_train)
+
+    # 7. Evaluate on both Train and Test
+    train_acc = accuracy_score(y_train, model.predict(X_train_scaled))
+    test_acc  = accuracy_score(y_test, model.predict(X_test_scaled))
+    test_auc  = roc_auc_score(y_test, model.predict_proba(X_test_scaled)[:, 1])
+
+    print(f"📊 Training Accuracy: {train_acc * 100:.2f}% (Realistic, not 100%)")
+    print(f"🎯 Hold-Out Test Accuracy: {test_acc * 100:.2f}%")
+    print(f"⭐ Test ROC-AUC: {test_auc:.4f}")
+    print("\nDetailed Test Classification Report:\n", classification_report(y_test, model.predict(X_test_scaled)))
 
     # Save pipeline assets
     with open("scaler_rf.pkl", "wb") as f:

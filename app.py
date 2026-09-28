@@ -104,7 +104,7 @@ def index():
     return render_template("index.html")
 
 
-# ── UPLOAD & TRAIN ─────────────────────────────────────────────────────────────
+# ── UPLOAD & BATCH PREDICT ───────────────────────────────────────────────────
 @app.route("/upload", methods=["GET", "POST"])
 def upload():
     global is_model_trained, uploaded_df, _model, _scaler, _features_list
@@ -116,47 +116,61 @@ def upload():
             return redirect(url_for("upload"))
 
         try:
-            # Save file so train_model.py can read it
+            # Save file
             os.makedirs("uploads", exist_ok=True)
             filepath = os.path.join("uploads", file.filename)
             file.save(filepath)
             
             df = pd.read_csv(filepath)
+            
+            # --- Batch Inference ---
+            if _model is not None and _features_list is not None:
+                print(f"[LoanSight] Running batch inference on {len(df)} applicants...")
+                df_infer = df.copy()
+                
+                # Column normalization (e.g. from new_loan_dataset vs old)
+                if 'loan_term' in df_infer.columns and 'loan_term_months' not in df_infer.columns:
+                    df_infer['loan_term_months'] = df_infer['loan_term']
+                
+                # Encode categorical features
+                cat_cols = ['employment_type', 'loan_purpose']
+                cat_cols = [c for c in cat_cols if c in df_infer.columns]
+                if cat_cols:
+                    df_encoded = pd.get_dummies(df_infer, columns=cat_cols)
+                else:
+                    df_encoded = df_infer
+                
+                # Align with training features
+                for col in _features_list:
+                    if col not in df_encoded.columns:
+                        df_encoded[col] = 0
+                
+                # Ensure correct order and fill NaNs
+                X_df = df_encoded[_features_list].fillna(0)
+                
+                # Scale and predict
+                X_scaled = _scaler.transform(X_df)
+                probs = _model.predict_proba(X_scaled)[:, 1] # Probability of repayment
+                
+                # Compute risk
+                df['repayment_probability'] = np.round(probs * 100, 2)
+                df['default_probability'] = 1.0 - probs
+                
+                def get_tier(prob_def):
+                    if prob_def < 0.30: return "Likely to Repay"
+                    if prob_def <= 0.60: return "Needs Review"
+                    return "High Default Risk"
+                
+                df['predicted_risk_tier'] = df['default_probability'].apply(get_tier)
+                
+                flash(f"✅ Successfully scored {len(df)} applicants using the static model!", "success")
+            else:
+                flash("✅ Dataset uploaded. (Static model not loaded, predictions unavailable)", "success")
+
             uploaded_df = df.copy()
 
-            # ─────────────────────────────────────────────────────────────────
-            # YOUR EXISTING TRAINING LOGIC GOES HERE.
-            # We deliberately do NOT rewrite the ML pipeline — just call it.
-            # Example hook:
-            #   from train import train_and_save
-            #   train_and_save(df)
-            # For now we just reload the saved files that already exist.
-            # ─────────────────────────────────────────────────────────────────
-            
-            try:
-                # Retrain model dynamically
-                print(f"Retraining model on new dataset...")
-                train_and_save_model(filepath)
-            except Exception as e:
-                print(f"Error during training: {e}")
-
-            if os.path.exists(MODEL_PATH):
-                with open(MODEL_PATH, "rb") as f:
-                    _model = pickle.load(f)
-                with open(SCALER_PATH, "rb") as f:
-                    _scaler = pickle.load(f)
-                with open(COLUMNS_PATH, "rb") as f:
-                    _features_list = pickle.load(f)
-                is_model_trained = True
-                flash("✅ Model trained successfully! You can now Search and Predict.", "success")
-            else:
-                # Fallback: mark as trained even without saved model
-                # (so UI unlocks; prediction will fail gracefully)
-                is_model_trained = True
-                flash("✅ Dataset uploaded. Model loaded.", "success")
-
         except Exception as e:
-            flash(f"Error processing file: {str(e)}", "error")
+            flash(f"Error processing file for batch inference: {str(e)}", "error")
             return redirect(url_for("upload"))
 
         return redirect(url_for("upload"))

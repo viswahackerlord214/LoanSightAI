@@ -1,0 +1,622 @@
+============================================================
+1. COMPLETE PROJECT DISCOVERY
+============================================================
+
+PROJECT ROOT: /Users/viswaravindren/Desktop/LoanSightAI
+
+DIRECTORIES:
+- `templates/`: Contains all frontend HTML/Jinja2 templates.
+- `uploads/`: Stores user-uploaded CSV datasets.
+- `venv/`: Python virtual environment (ignored).
+- `.git/`: Git repository (forged history).
+- `.dist/`, `tmp_loan/`: Temporary/build directories.
+
+IMPORTANT FILES:
+
+FILE: app.py
+PURPOSE: Main entry point and backend web server for the application.
+WHAT IT DOES: Handles all HTTP routing, form submissions, session management, ML model inference, and PDF report generation.
+IMPORTANT FUNCTIONS: `upload()`, `search_customer()`, `predict()`, `download_report()`
+IMPORTANT VARIABLES: `is_model_trained`, `uploaded_df`, `_features_list`, `_model`, `_scaler`
+WHAT OTHER FILES IT INTERACTS WITH: `train_model.py`, all `templates/*.html`, `.pkl` ML artifacts, `uploads/` directory.
+
+FILE: train_model.py
+PURPOSE: Machine Learning training pipeline.
+WHAT IT DOES: Reads uploaded CSV, preprocesses data (handles categoricals, imputation, scaling), trains a Random Forest Classifier, and saves the artifacts as pickle files.
+IMPORTANT FUNCTIONS: `train_and_save_model(dataset_path)`
+WHAT OTHER FILES IT INTERACTS WITH: `app.py` (called by it), outputs to `model_rf.pkl`, `scaler_rf.pkl`, `columns_rf.pkl`.
+
+FILE: templates/base.html
+PURPOSE: Master frontend layout.
+WHAT IT DOES: Contains the global CSS (Tailwind via CDN, custom CSS), navigation bar, and defines Jinja2 blocks for child templates.
+
+FILE: templates/index.html, input.html, result.html, search.html, upload.html
+PURPOSE: Specific UI pages.
+WHAT IT DOES: Render the UI for home, prediction form, results chart, customer search, and dataset upload. Interacts with backend via form POSTs and AJAX GETs.
+
+FILE: requirements.txt
+PURPOSE: Python dependencies list.
+
+UTILITY SCRIPTS (NOT USED IN CORE APP FLOW):
+- `create_dummy_model.py`: Script to generate dummy data and an sklearn Random Forest model (`model.pkl`).
+- `fix_keras_model.py`: Script to generate dummy data and a Keras Neural Network model (`loan_model.h5`).
+- `fix_app.py`: Regex script used historically to modify `app.py`.
+- `forge_git_history.py`: Script that faked the git commit history.
+
+ML ARTIFACTS:
+- `model_rf.pkl`, `scaler_rf.pkl`, `columns_rf.pkl`: The ACTUAL artifacts loaded by `app.py`.
+- `model.pkl`, `scaler.pkl`, `columns.pkl`, `loan_model.h5`: Unused artifacts left in the directory.
+
+============================================================
+2. COMPLETE TECHNOLOGY STACK
+============================================================
+
+ACTUALLY USED:
+
+FRONTEND:
+- HTML5 / Jinja2 (Templating engine)
+- CSS3 (Vanilla CSS with CSS Variables for theming)
+- Tailwind CSS (via CDN, used for layout utility classes)
+- JavaScript (Vanilla JS for DOM manipulation and AJAX)
+- Chart.js (via CDN, used for probability bar chart in result.html)
+- Google Fonts (Syne and DM Sans)
+
+BACKEND:
+- Python 3
+- Flask (Web framework)
+- Werkzeug (Routing and WSGI)
+
+AI / ML:
+- Scikit-learn (RandomForestClassifier, StandardScaler)
+- Pandas (Dataframe manipulation, `pd.get_dummies`, CSV reading)
+- NumPy (Data formatting)
+- Pickle (Model serialization)
+
+REPORTING:
+- ReportLab (PDF Generation engine, primary)
+- FPDF (Fallback PDF engine)
+
+STATE MANAGEMENT:
+- Flask Session (Client-side signed cookies for passing prediction data to PDF route)
+- Global Python Variables (Server-side in-memory state: `is_model_trained`, `uploaded_df`, `_model`)
+
+INSTALLED BUT NOT USED (Or partial usage):
+- TensorFlow / Keras: Installed in requirements.txt and used in `fix_keras_model.py`, but explicitly bypassed/commented out in `app.py`. The app relies entirely on the Scikit-Learn Random Forest.
+- Threadpoolctl, Tensorboard, etc.: Brought in by TF/Sklearn dependencies.
+
+DATABASE:
+- NO DATABASE IMPLEMENTED. Data is kept in RAM via Pandas DataFrame (`uploaded_df`).
+
+============================================================
+3. EVERY FEATURE IN THE PROJECT
+============================================================
+
+FEATURE NAME: Dynamic Dataset Upload & Training
+PURPOSE: Allow users to upload their own loan dataset and train the ML model on the fly.
+USER ACTION: User navigates to /upload, selects a CSV, and clicks submit.
+FRONTEND: `upload.html` shows a drag-and-drop zone and a fake animated loading overlay.
+BACKEND: `app.py` -> `upload()` saves the file to `uploads/` and calls `train_and_save_model()`.
+ML PIPELINE: `train_model.py` reads CSV, determines target column (`default` or `loan_paid_back`), drops IDs, one-hot encodes categoricals, scales, trains Random Forest, and saves `.pkl` files.
+OUTPUT: Updates global variables in `app.py` and flashes success message.
+
+FEATURE NAME: Customer Search (AJAX)
+PURPOSE: Look up existing customers from the uploaded dataset to autofill the prediction form.
+USER ACTION: Types name/ID in `/search` and hits enter.
+FRONTEND: Vanilla JS `fetch()` call to `/search_customer?q=...`. Renders results dynamically.
+BACKEND: `app.py` -> `search_customer()`. Searches the Pandas DataFrame (`uploaded_df`) using string contains mask.
+OUTPUT: Returns top 10 matching rows as JSON. User clicks "Use for Prediction" which saves data to browser `sessionStorage` and redirects to `/predict`.
+
+FEATURE NAME: Loan Repayment Prediction
+PURPOSE: Predict if an applicant will repay the loan.
+USER ACTION: Submits the form on `/predict`. (Can be auto-filled via sessionStorage JS script).
+FRONTEND: Form with HTML5 validation and dynamic hints.
+BACKEND: `app.py` -> `predict()`. Gathers form data, creates a 1-row Pandas DataFrame, applies `pd.get_dummies()`, aligns columns with `_features_list` (padding missing with 0s), scales via `_scaler.transform()`, and runs `_model.predict_proba()`.
+PROCESSING: 3-Tier Risk Logic determines outcome based on `default_probability`: <30% Likely to Repay, 30%-60% Needs Review, >60% High Default Risk.
+OUTPUT: Saves result to Flask `session` and renders `result.html`.
+
+FEATURE NAME: PDF Report Generation
+PURPOSE: Export prediction results to a printable PDF.
+USER ACTION: Clicks "Download PDF Report" on the result page.
+FRONTEND: Standard href link to `/download_report`.
+BACKEND: `app.py` -> `download_report()`. Reads `session["last_result"]`. Uses ReportLab to programmatically draw a styled PDF with tables, headers, and AI summaries. Returns file via `send_file()`.
+
+============================================================
+4. COMPLETE ARCHITECTURE
+============================================================
+
+USER
+ │ (HTTP GET/POST)
+ ▼
+FLASK APP (app.py) ──(Writes)──> uploads/ (CSV Files)
+ │    │
+ │    └──(Calls)──> train_model.py (ML Pipeline)
+ │                        │
+ │                        ▼ (Saves)
+ │                  model_rf.pkl, scaler_rf.pkl, columns_rf.pkl
+ │
+ ├──(Reads)──> Pandas DataFrame (In-Memory `uploaded_df` for Search)
+ │
+ ├──(Loads)──> model_rf.pkl & scaler_rf.pkl (For Inference)
+ │
+ ├──(Uses)───> ReportLab / FPDF (For PDF Generation)
+ │
+ ▼ (Renders)
+JINJA2 TEMPLATES (Frontend)
+ │ (HTML/CSS/JS)
+ ▼
+USER
+
+Explanation:
+The architecture is a monolithic Flask application. It holds state in memory (Global variables). When a CSV is uploaded, it writes to disk, synchronously triggers a Python script to train an ML model, and updates the in-memory global state. The frontend uses Jinja2 for server-side rendering, with vanilla JS used for the AJAX search feature and Chart.js rendering.
+
+============================================================
+5. END-TO-END APPLICATION FLOW
+============================================================
+
+FLOW 1: APPLICATION STARTUP
+1. Python executes `app.py`.
+2. App attempts to load `model_rf.pkl`, `scaler_rf.pkl`, and `columns_rf.pkl`.
+3. If successful, sets `is_model_trained = True`. If not, sets to False.
+4. Flask server starts on port 5000.
+
+FLOW 2: DATASET UPLOAD & TRAINING
+1. User visits `/upload`.
+2. User submits a CSV file.
+3. Backend saves to `uploads/filename.csv`.
+4. Backend calls `train_and_save_model(filepath)`.
+5. `train_model.py` executes ML pipeline (Pandas -> StandardScaler -> RandomForest).
+6. Pickles are saved to disk.
+7. `app.py` reloads the new pickles into global memory.
+8. User is redirected to `/upload` with a success flash message.
+
+FLOW 3: CUSTOMER SEARCH
+1. User visits `/search`.
+2. Types query "John". JS sends `GET /search_customer?q=john`.
+3. Backend filters in-memory `uploaded_df` for string match in name/id columns.
+4. Returns JSON array of matches.
+5. Frontend renders cards.
+6. User clicks "Use". JS saves JSON record to `sessionStorage('prefill')` and redirects to `/predict`.
+
+FLOW 4: PREDICTION
+1. User visits `/predict`. JS reads `sessionStorage`, maps keys to form inputs, and fills them.
+2. User clicks Submit. Form POSTs to `/predict`.
+3. Backend extracts features, applies dummy encoding, aligns columns to match training schema.
+4. Backend scales data and runs `model.predict_proba()`.
+5. Evaluates 3-Tier logic.
+6. Saves `prediction`, `probability`, and `input_data` to Flask `session`.
+7. Renders `result.html`, which uses Chart.js to animate the probability bar.
+
+FLOW 5: REPORT GENERATION
+1. User clicks "Download PDF" on results page.
+2. GET `/download_report`.
+3. Backend retrieves data from Flask `session`.
+4. ReportLab constructs the document (tables, styles, logic text).
+5. PDF is returned as an attachment via `send_file`.
+
+============================================================
+6. FRONTEND DEEP DIVE
+============================================================
+
+- FRAMEWORK: Jinja2 Server-Side Rendering + HTML5/CSS3 + Vanilla JS.
+- STYLING: Tailwind CSS via CDN for layout, extensive custom CSS in `<style>` blocks for theming, cards, animations (fade-up).
+- ENTRY POINT: `base.html` provides the shell, navbar, and CSS variables.
+- CONTEXT/STATE: `app.context_processor` injects `is_model_trained` and `now` into all templates.
+- COMPONENTS:
+  - Navbar: Conditional rendering based on `is_model_trained` (locks links if false).
+  - Search Input: Vanilla JS DOM event listener (`keyup` / `click`) -> `fetch()` -> `innerHTML` DOM generation.
+  - Predict Form: HTML5 `<form>` with `required` and `min`/`max` attributes.
+- API CALLS: Only one AJAX call (`fetch('/search_customer')`).
+- JS LOGIC: 
+  - `upload.html`: Drag-and-drop file handling, fake progress bar animation.
+  - `input.html`: Prefilling form from `sessionStorage`.
+  - `result.html`: Initializing `Chart.js` bar chart based on Jinja-injected probability variable.
+- RESPONSIVE DESIGN: Handled via Tailwind utility classes (`max-w-6xl`, `grid-cols`, `flex-wrap`).
+
+============================================================
+7. BACKEND DEEP DIVE
+============================================================
+
+- SERVER: Flask (`app = Flask(__name__)`)
+- STATE MANAGEMENT: Python global variables (`is_model_trained`, `uploaded_df`, `_features_list`, `_model`, `_scaler`).
+
+ENDPOINTS:
+
+METHOD: GET
+URL: /
+PURPOSE: Render homepage.
+
+METHOD: GET, POST
+URL: /upload
+PURPOSE: Handle dataset upload and trigger model training.
+PROCESSING: Saves file via `werkzeug`, calls `train_and_save_model()`, reloads global pickles.
+
+METHOD: GET
+URL: /search
+PURPOSE: Render search page.
+
+METHOD: GET
+URL: /search_customer
+PURPOSE: AJAX endpoint for customer lookup.
+REQUEST: `?q=query`
+PROCESSING: Uses Pandas string methods (`str.contains`) on `uploaded_df`.
+RESPONSE: JSON `{"results": [...]}`.
+
+METHOD: GET, POST
+URL: /predict
+PURPOSE: ML Inference.
+PROCESSING: 
+  1. Extracts 14 specific features from `request.form`.
+  2. Creates Pandas DataFrame.
+  3. `pd.get_dummies()` for `employment_type` and `loan_purpose`.
+  4. Aligns columns with `_features_list` (adds missing columns as 0).
+  5. Scales using `_scaler.transform()`.
+  6. Predicts using `_model.predict_proba()`.
+  7. Applies 3-tier risk logic.
+  8. Saves to Flask session.
+  9. Renders `result.html`.
+
+METHOD: GET
+URL: /download_report
+PURPOSE: Generate PDF.
+PROCESSING: Reads Flask session, builds ReportLab `SimpleDocTemplate`, returns PDF buffer.
+
+============================================================
+8. DATABASE DEEP DIVE
+============================================================
+
+NO DATABASE IMPLEMENTED.
+
+Data is stored entirely in:
+1. `uploaded_df` (Pandas DataFrame in RAM, populated on CSV upload).
+2. Flask `session` (Client-side signed cookie for passing prediction data to the PDF route).
+3. Pickle files (Disk-based storage for ML model state).
+
+============================================================
+9. AI / ML DEEP DIVE
+============================================================
+
+PIPELINE:
+DATASET (CSV)
+↓
+DATA CLEANING (Drop IDs: customer_id, person_id)
+↓
+PREPROCESSING (Fill NaNs with 0)
+↓
+FEATURE ENGINEERING (pd.get_dummies for categoricals)
+↓
+FEATURE ALIGNMENT (Save columns list to pickle)
+↓
+SCALING (StandardScaler)
+↓
+MODEL TRAINING (RandomForestClassifier, n_estimators=100, class_weight='balanced')
+↓
+MODEL SAVING (Pickle dump)
+↓
+USER INPUT (Web Form)
+↓
+PREPROCESSING (Align to saved columns, apply saved Scaler)
+↓
+MODEL INFERENCE (rf.predict_proba)
+↓
+PROBABILITY (prob_repay)
+↓
+UI (3-Tier Risk Logic & Chart.js)
+
+ALGORITHM DETAILS:
+- Model: Random Forest Classifier.
+- Ensemble learning method using multiple decision trees.
+- `class_weight='balanced'`: Automatically adjusts weights inversely proportional to class frequencies to handle imbalanced loan default datasets.
+- `predict_proba`: Used instead of `predict` to get a continuous risk probability rather than a binary 0/1 output.
+
+============================================================
+10. FEATURE ENGINEERING
+============================================================
+
+NAME: Categorical Encoding
+FORMULA: `pd.get_dummies(..., drop_first=False)`
+INPUT FEATURES: `gender`, `marital_status`, `education_level`, `employment_status`, `loan_purpose`, `grade_subgrade`, `employment_type`
+WHY IT EXISTS: Random Forest in scikit-learn requires numerical inputs; it cannot natively process string categories.
+WHERE CREATED: `train_model.py` during training, and mirrored in `app.py` during inference.
+
+NAME: Feature Alignment (Dummy Padding)
+FORMULA: `df_encoded[col] = 0` for missing columns.
+WHY IT EXISTS: During inference, a single applicant might only have one category (e.g., `loan_purpose_MEDICAL`). The model expects ALL dummy columns generated during training (e.g., `loan_purpose_EDUCATION`, etc). This logic ensures the inference vector shape exactly matches the training vector shape.
+
+NAME: Credit Score Proxy (in `app.py`)
+FORMULA: `float(form.get("loan_int_rate", 650)) * 50`
+WHY IT EXISTS: Hardcoded logic in `app.py` `/predict` route trying to map standard form fields to expected backend features. It uses interest rate as a proxy for credit score if not explicitly provided.
+
+============================================================
+11. DATA FLOW
+============================================================
+
+DATA OBJECT: Uploaded CSV
+SOURCE: User File Input
+↓
+STORAGE: Disk (`uploads/filename.csv`)
+↓
+PROCESSING: Read by Pandas in `train_model.py` and `app.py`
+↓
+STORAGE (Memory): Kept in `uploaded_df` global variable for search.
+
+DATA OBJECT: Prediction Result
+SOURCE: ML Model Output
+↓
+STORAGE: `session["last_result"]` (Flask signed cookie)
+↓
+RETRIEVAL: Extracted in `/download_report` route.
+↓
+PROCESSING: Passed to ReportLab for PDF generation.
+↓
+OUTPUT: PDF file download.
+
+============================================================
+12. API ANALYSIS
+============================================================
+
+METHOD: GET
+ENDPOINT: /search_customer
+PURPOSE: Auto-complete customer search from uploaded dataset.
+REQUEST: `?q=search_term`
+RESPONSE: JSON `{"results": [{"person_name": "...", "person_id": "...", ...}]}`
+AUTH: None
+DATABASE: In-memory Pandas DataFrame
+FRONTEND CALLER: `search.html` Vanilla JS `fetch()`
+
+============================================================
+13. AUTHENTICATION & SECURITY
+============================================================
+
+- AUTHENTICATION: Not implemented. The application is open access.
+- AUTHORIZATION: Not implemented.
+- SECRETS: Flask `app.secret_key` is hardcoded as `"loansight-secret-2026"`.
+- SECURITY WEAKNESSES: 
+  - `file.filename` is used directly in `os.path.join` during upload. This is a severe Directory Traversal vulnerability (should use `werkzeug.utils.secure_filename`).
+  - No CSRF protection on forms.
+  - No rate limiting.
+  - In-memory data exposes all user PII if the server is compromised or memory dumped.
+
+============================================================
+14. DEPLOYMENT
+============================================================
+
+- LOCAL SETUP: Standard Python virtual environment.
+- COMMANDS: `python -m venv venv`, `pip install -r requirements.txt`, `python app.py`
+- HOSTING / CLOUD: Not implemented. Designed to run locally on port 5000.
+- DOCKER / CI/CD: Not implemented.
+
+============================================================
+15. ENVIRONMENT VARIABLES
+============================================================
+
+None used via `.env` or `os.environ.get()` for configuration.
+(Only `TF_CPP_MIN_LOG_LEVEL` is set programmatically to suppress TensorFlow warnings).
+
+============================================================
+16. ERROR HANDLING
+============================================================
+
+- FRONTEND: HTML5 `required`, `min`, `max` attributes on form inputs.
+- BACKEND: Flask `flash()` is used to send error messages to the UI (e.g., "Please upload a valid CSV file").
+- ML ERRORS: `try/except` blocks wrap the training and prediction logic. If model files are missing at startup, it gracefully sets `is_model_trained = False` and locks the UI.
+- FALLBACKS: If ReportLab is missing, it falls back to FPDF for PDF generation. If ML model fails during prediction but `is_model_trained` is true, it falls back to `np.random.random()` for a demo probability (Bug/Feature).
+
+============================================================
+17. TESTING
+============================================================
+
+NO AUTOMATED TESTING FOUND.
+No `pytest`, `unittest`, or evaluation script for ML model metrics (Accuracy, F1-score) is present.
+
+============================================================
+18. PERFORMANCE & SCALABILITY
+============================================================
+
+CURRENTLY IMPLEMENTED:
+- Single-threaded, stateful design. 
+- In-memory Pandas DataFrame (`uploaded_df`).
+
+BOTTLENECKS & SCALABILITY ISSUES:
+- FLASK GLOBAL VARIABLES: Storing `uploaded_df` and `is_model_trained` in global variables will fail entirely if deployed via a WSGI server like Gunicorn with multiple workers (each worker will have a different memory state).
+- MEMORY LEAK / LIMIT: Loading large CSVs into RAM will crash the server.
+- BLOCKING I/O: Model training (`train_and_save_model`) is synchronous and blocks the main Flask thread.
+- FIX: Move data to a real database (PostgreSQL), move training to a background worker (Celery/Redis), and load model state lazily or via a dedicated inference service.
+
+============================================================
+19. WHY / WHAT / HOW
+============================================================
+
+WHAT: Flask Web Framework
+WHY: Lightweight, easy to integrate with Python data science libraries (Pandas, Scikit-learn).
+HOW: `app.py` handles routes and ML logic in a single file.
+
+WHAT: Random Forest Classifier
+WHY: High performance on tabular data, requires less hyperparameter tuning, resistant to overfitting, and provides `predict_proba` for probability outputs.
+HOW: Implemented via scikit-learn, trained dynamically, and saved via pickle.
+
+WHAT: Global variables for state (`uploaded_df`)
+WHY: Quick prototyping and hackathon-style speed.
+HOW: `global uploaded_df` used in upload and search routes.
+TRADEOFFS: Ruins scalability and statelessness required for production deployments.
+
+============================================================
+20. IMPORTANT PROGRAMMING CONCEPTS
+============================================================
+
+CONCEPT: Machine Learning Serialization
+SIMPLE DEFINITION: Saving a trained model object to disk so it can be loaded later without retraining.
+HOW IT APPEARS: `pickle.dump()` in `train_model.py` and `pickle.load()` in `app.py`.
+
+CONCEPT: One-Hot Encoding (Dummy Variables)
+SIMPLE DEFINITION: Converting categorical strings (e.g., "RENT", "OWN") into binary columns (0 or 1) so math models can process them.
+HOW IT APPEARS: `pd.get_dummies()` used in both training and inference.
+
+CONCEPT: AJAX (Asynchronous JavaScript and XML)
+SIMPLE DEFINITION: Fetching data from the server without reloading the page.
+HOW IT APPEARS: The `fetch('/search_customer')` call in `search.html`.
+
+CONCEPT: Server-Side Session
+SIMPLE DEFINITION: Storing data specific to a user's session securely.
+HOW IT APPEARS: Flask `session['last_result']` used to pass prediction data from the POST route to the PDF download GET route.
+
+============================================================
+21. INTERVIEW QUESTIONS
+============================================================
+
+LEVEL 1 — BASIC
+QUESTION: What does `app.py` do in this project?
+WHAT INTERVIEWER IS TESTING: Basic understanding of Flask routing and project structure.
+KEY CONCEPTS: Routing, WSGI, templates.
+STRONG ANSWER: It's the main Flask application that defines the HTTP endpoints, handles file uploads, processes form submissions for predictions, loads the pickled ML models to run inference, and generates PDF reports.
+
+LEVEL 2 — INTERMEDIATE
+QUESTION: How did you handle categorical variables in your ML pipeline?
+WHAT INTERVIEWER IS TESTING: Data preprocessing knowledge.
+KEY CONCEPTS: One-Hot Encoding, Dummy Variables, Feature Alignment.
+STRONG ANSWER: I used Pandas `get_dummies` to one-hot encode categorical features. Crucially, during inference, I aligned the generated columns with a saved `columns_rf.pkl` list to ensure the incoming data vector exactly matched the shape of the data the Random Forest was trained on, filling missing category columns with zeros.
+
+LEVEL 3 — ADVANCED
+QUESTION: Your application uses global variables to store the uploaded dataset (`uploaded_df`). What happens if we deploy this to Production using Gunicorn with 4 worker processes?
+WHAT INTERVIEWER IS TESTING: System design, WSGI architecture, statelessness.
+KEY CONCEPTS: WSGI workers, shared memory, stateless APIs.
+STRONG ANSWER: It will break. Each Gunicorn worker has its own memory space. If a user uploads a CSV to Worker A, `uploaded_df` is set there. If their subsequent search request hits Worker B, `uploaded_df` will be None, causing an error. To fix this, state must be moved out of memory into a Database (like PostgreSQL or Redis) and model artifacts should be loaded independently by each worker or served via a separate inference API.
+
+LEVEL 4 — DEEP TECHNICAL
+QUESTION: Why did you use `class_weight='balanced'` in your Random Forest?
+WHAT INTERVIEWER IS TESTING: Understanding of imbalanced datasets in ML.
+KEY CONCEPTS: Class imbalance, precision/recall.
+STRONG ANSWER: In loan prediction, defaults (class 0) are usually a minority compared to repayments (class 1). If trained normally, the model might just predict "repay" for everyone to achieve high accuracy. `balanced` adjusts the weights inversely proportional to class frequencies, forcing the model to penalize misclassifications of the minority class (defaults) more heavily.
+
+============================================================
+22. WHY QUESTIONS
+============================================================
+
+Why Random Forest instead of a Neural Network?
+Based on the code (Keras was removed/bypassed), Random Forest was likely chosen because it inherently handles tabular/structured financial data better than simple Neural Networks without massive tuning, requires less data to avoid overfitting, and is easier to interpret.
+
+Why use Flask Session for PDF generation?
+Instead of passing complex JSON objects via URL parameters (which has size limits and looks ugly) or re-running the ML model, the prediction result is temporarily stored in the encrypted client-side cookie session. The `/download_report` route simply pulls from this session, ensuring state persistence between the two HTTP requests seamlessly.
+
+============================================================
+23. CRITICAL CODE PATHS
+============================================================
+
+PATH: Prediction Flow
+START (User submits form on input.html)
+↓
+FILE: app.py
+↓
+FUNCTION: `predict()` (POST)
+↓
+FUNCTION: `pd.DataFrame([features])` & `pd.get_dummies()`
+↓
+FUNCTION: Feature alignment loop (adds 0s to missing columns)
+↓
+FUNCTION: `_scaler.transform()`
+↓
+MODEL: `_model.predict_proba()`
+↓
+RESPONSE: Flask `render_template('result.html')`
+↓
+FRONTEND: UI updates
+
+============================================================
+24. FILES I MUST KNOW
+============================================================
+
+TIER 1 — MUST KNOW
+- `app.py`: Contains 90% of the application logic, routing, UI mapping, and prediction integration.
+- `train_model.py`: Defines exactly how the ML model is trained and what preprocessing is applied.
+
+TIER 2 — SHOULD KNOW
+- `templates/input.html`: The UI form that maps user inputs to the backend dictionary.
+- `templates/search.html`: Contains the AJAX logic for customer lookups.
+
+TIER 3 — GOOD TO KNOW
+- `templates/result.html`: Shows how Chart.js is integrated with Jinja variables.
+
+============================================================
+25. BUGS / WEAKNESSES / INTERVIEW TRAPS
+============================================================
+
+WHAT: Directory Traversal Vulnerability
+WHERE: `app.py` -> `upload()` route. `filepath = os.path.join("uploads", file.filename)`
+WHY: `file.filename` is taken directly from user input. A malicious user could upload a file named `../../../etc/passwd` and overwrite system files.
+HOW TO IMPROVE: Wrap it with `werkzeug.utils.secure_filename(file.filename)`.
+
+WHAT: Stateful Global Variables in WSGI
+WHERE: `app.py` -> `global uploaded_df, is_model_trained`
+WHY: Will fail in production environments with multiple workers.
+HOW TO IMPROVE: Use a database to store datasets and a status flag.
+
+WHAT: Hardcoded Fake Prediction Fallback
+WHERE: `app.py` -> `predict()` route.
+WHY: If the model isn't loaded but `is_model_trained` is true, it runs `prob_raw = float(np.random.random())`. This is a massive interview trap; do not claim the model is working if it's falling back to `random()`.
+HOW TO IMPROVE: Return a 500 error or flash message "Model unavailable".
+
+WHAT: Hardcoded Model Features mismatch
+WHERE: `app.py` `predict()` lines 220-234.
+WHY: The dictionary explicitly hardcodes features like `age`, `annual_income`, `credit_score` using wild guesses (e.g. `float(form.get("loan_int_rate", 650)) * 50`). This indicates the UI form fields don't perfectly match the backend dataset features natively, requiring manual hacky mapping.
+
+============================================================
+26. ACTUAL VS DOCUMENTED
+============================================================
+
+CLAIMED FEATURE: "Real-time Probability Charts"
+ACTUAL IMPLEMENTATION: Uses Chart.js in `result.html` based on `predict_proba`.
+STATUS: IMPLEMENTED
+
+CLAIMED FEATURE: "Professional PDF Reporting"
+ACTUAL IMPLEMENTATION: Uses ReportLab in `app.py` `/download_report`.
+STATUS: IMPLEMENTED
+
+CLAIMED FEATURE: "TensorFlow / Keras usage" (inferred from requirements.txt and `fix_keras_model.py`)
+ACTUAL IMPLEMENTATION: The app uses Scikit-Learn Random Forest. TensorFlow is commented out/ignored.
+STATUS: NOT IMPLEMENTED in core app.
+
+============================================================
+27. GLOSSARY
+============================================================
+
+TERM: Random Forest
+SIMPLE EXPLANATION: An algorithm that creates hundreds of decision trees during training and merges them together to get a more accurate and stable prediction.
+HOW THIS PROJECT USES IT: To classify whether a user will default on a loan or repay it.
+
+TERM: One-Hot Encoding
+SIMPLE EXPLANATION: Turning words into numbers by creating new binary columns for each category.
+HOW THIS PROJECT USES IT: Converting things like Home Ownership (RENT, OWN) into columns (`home_RENT = 1`, `home_OWN = 0`).
+
+============================================================
+28. COMPLETE INTERVIEW EXPLANATION
+============================================================
+
+30-SECOND EXPLANATION:
+"LoanSight AI is a web application that predicts loan repayment probability. Users can upload a CSV dataset, which dynamically trains a Random Forest model on the backend using Scikit-Learn. You can then search for customers via AJAX or input details manually to get a real-time risk prediction, which is visualized with Chart.js and can be exported as a PDF report using ReportLab. The backend is built entirely on Flask."
+
+1-MINUTE EXPLANATION:
+"I built LoanSight AI using Flask, Python, and Scikit-Learn. The core feature is its dynamic adaptability: when a user uploads a CSV loan dataset, a script cleans the data, applies one-hot encoding, scales it, and trains a Random Forest Classifier on the fly, saving the artifacts using Pickle. The web app then loads these artifacts into memory. For the UI, I used Jinja2 templates styled with Tailwind CSS. When a user wants to predict a loan, they fill out a form, the backend dynamically aligns their input features with the expected model schema, scales the data, and runs `predict_proba()` to determine if they fall into a low, moderate, or high-risk tier. Finally, the user can download a dynamically generated PDF report."
+
+3-MINUTE EXPLANATION (Technical):
+"At an architectural level, LoanSight AI is a monolithic Flask application handling both the presentation layer and ML inference. 
+
+When a user uploads data, `train_model.py` is invoked. It handles missing values, applies Pandas `get_dummies` for categorical encoding, and uses `StandardScaler`. I chose a Random Forest with `class_weight='balanced'` because loan default datasets are notoriously imbalanced. The trained model, scaler, and exact column schema are serialized via Pickle.
+
+On the frontend, I implemented a search feature using Vanilla JS `fetch()` that queries the in-memory Pandas dataframe and returns JSON. If a user selects a profile, it saves the data to the browser's `sessionStorage` and pre-fills the prediction form.
+
+When the form is submitted via POST, the Flask backend intercepts it. The trickiest part was feature alignment—because one-hot encoding generates variable columns depending on the training set, my backend dynamically creates a DataFrame from the user input, applies `get_dummies`, and then forces the DataFrame to match the exact column structure saved during training by padding missing columns with zeros. 
+
+After scaling, `model.predict_proba()` returns a probability score, which dictates a 3-tier risk logic. The result is temporarily stored in a Flask secure cookie session. When the user requests a PDF, the `/download_report` route reads that session and uses ReportLab to draw a formatted PDF document.
+
+While currently stateful and reliant on global variables—which wouldn't scale in a multi-worker production setup—it successfully demonstrates a complete end-to-end ML pipeline integrated directly into a web interface."
+
+============================================================
+29. FINAL MASTER SUMMARY
+============================================================
+
+- PURPOSE: Predict loan repayment risk dynamically from user-uploaded datasets.
+- TECH STACK: Python, Flask, Scikit-Learn, Pandas, HTML/CSS/JS, Tailwind, Chart.js, ReportLab.
+- ARCHITECTURE: Monolithic Flask web server holding ML state in memory.
+- ML PIPELINE: CSV -> One-Hot Encoding -> StandardScaler -> Random Forest -> Pickle -> Inference via `predict_proba`.
+- CRITICAL LOGIC: Feature alignment during inference to match dynamically generated dummy columns from training.
+- LIMITATIONS: Highly stateful backend (global variables) preventing WSGI scalability; Directory traversal vulnerability on upload.
+- IMPROVEMENTS: Migrate to a stateless architecture using a PostgreSQL database and Celery for background model training. Secure file uploads.

@@ -88,12 +88,12 @@
 <!-- Page hero -->
 <section class="page-hero">
   <div class="page-hero-content">
-    <span class="badge badge-blue mb-3">Step 1 of 2</span>
+    <span class="badge badge-blue mb-3">Batch Scoring</span>
     <h1 style="font-family:'Syne',sans-serif;font-weight:800;font-size:2.5rem;color:#fff;letter-spacing:-.02em;margin-bottom:.75rem">
-      Upload & Train
+      Upload & Batch Predict
     </h1>
     <p style="color:rgba(255,255,255,.6);font-size:1.05rem;max-width:480px;margin:0 auto">
-      Upload your CSV loan dataset to train the prediction model. This unlocks Search and Predict features.
+      Upload your CSV dataset of applicants. The pre-trained static model will instantly score all rows and evaluate their repayment risk.
     </p>
   </div>
 </section>
@@ -136,22 +136,22 @@
       <div class="mt-6 flex justify-center">
         <button type="submit" class="btn-primary" id="upload-btn" style="font-size:1rem;padding:.9rem 2.5rem" disabled>
           <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
-          Upload & Train Model
+          Upload & Predict Batch
         </button>
       </div>
 
       <!-- Info note -->
       <p style="text-align:center;color:var(--muted);font-size:.83rem;margin-top:1rem">
-        Training may take a few moments. Do not close the browser.
+        Batch inference may take a few moments. Do not close the browser.
       </p>
     </form>
   </div>
 
-  <!-- ── SUCCESS SECTION (shown after training) ── -->
+  <!-- ── SUCCESS SECTION (shown after prediction) ── -->
   {% if is_model_trained %}
   <div id="success-section" style="display:block" class="fade-up">
     <div class="alert-success mb-6" style="text-align:center;font-size:1rem">
-      ✅ Model Trained Successfully — Features are now unlocked!
+      ✅ Batch Prediction Complete — Applicants scored and saved!
     </div>
     <div class="dashboard-grid">
       <a href="/search" class="dash-card">
@@ -185,12 +185,12 @@
 
 </div>
 
-<!-- ── TRAINING OVERLAY ── -->
+<!-- ── INFERENCE OVERLAY ── -->
 <div class="training-overlay" id="training-overlay">
   <div class="train-ring"></div>
   <div style="text-align:center">
-    <h3 style="font-family:'Syne',sans-serif;font-weight:800;color:#fff;font-size:1.3rem;margin-bottom:.5rem">Training Model…</h3>
-    <p style="color:rgba(255,255,255,.6)">Processing dataset and fitting the Random Forest model. Please wait.</p>
+    <h3 style="font-family:'Syne',sans-serif;font-weight:800;color:#fff;font-size:1.3rem;margin-bottom:.5rem">Predicting Batch…</h3>
+    <p style="color:rgba(255,255,255,.6)">Running inference on dataset using static pre-trained model. Please wait.</p>
   </div>
   <div style="width:280px;height:5px;background:rgba(255,255,255,.1);border-radius:99px;overflow:hidden">
     <div id="train-bar" style="height:100%;background:var(--accent);border-radius:99px;width:0%;transition:width .4s ease"></div>

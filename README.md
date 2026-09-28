@@ -115,7 +115,7 @@ PDF Report Generation
 ### Frontend
 * HTML5
 * Jinja2
-* Vanilla CSS (Rich Custom Glassmorphism UI)
+* Vanilla CSS
 * JavaScript
 * Chart.js (Real-time Probability Charts)
 

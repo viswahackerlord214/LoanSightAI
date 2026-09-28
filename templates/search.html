@@ -188,7 +188,14 @@ function buildCard(rec) {
           ${(rec['person_name'] || rec['name'] || 'U').toString().charAt(0).toUpperCase()}
         </div>
         <div>
-          <div style="font-family:'Syne',sans-serif;font-weight:700">${rec['person_name'] || rec['name'] || 'Customer'}</div>
+          <div style="font-family:'Syne',sans-serif;font-weight:700">
+            ${rec['person_name'] || rec['name'] || 'Customer'}
+            ${rec['predicted_risk_tier'] ? 
+              `<span class="badge ${rec['predicted_risk_tier'] == 'Likely to Repay' ? 'badge-green' : (rec['predicted_risk_tier'] == 'Needs Review' ? 'badge-blue' : 'badge-red')}" style="margin-left:.5rem; font-size:.65rem">
+                ${rec['predicted_risk_tier']} (${rec['repayment_probability']}%)
+              </span>` : ''
+            }
+          </div>
           <div style="font-size:.78rem;color:var(--muted)">ID: ${rec['person_id'] || rec['id'] || 'N/A'}</div>
         </div>
       </div>
